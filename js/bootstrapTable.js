@@ -31,28 +31,28 @@ function initBtable(idTable, datat, options = optionsDefault) {
         data = datat;
         calculatePages(options);
         let pnode = table.parentNode; //Контейнер, в который была помещена таблица
-    
+
         //Создаём новый контейнер для элементов и таблицы
         let container = document.createElement('div');
-    
+
         //Оборачиваем таблицу в контейнер
         let contTable = document.createElement('div');
         contTable.style.overflowX = 'auto';
         contTable.classList.add('mt-3');
         contTable.append(table);
-    
+
         //Создаём элемент для отслеживания окончания таблицы при пролистывании
         endBtable = document.createElement('span');
         endBtable.id = 'endBtable';
-    
+
         contTable.append(table);
         contTable.append(endBtable);
-    
+
         container.append(headerTable(options));
         container.append(contTable);
         container.append(footerTable(options));
         pnode.append(container);
-    
+
         createHead(options);
         addFirstRows();
     } catch (error) {
@@ -66,6 +66,7 @@ window.addEventListener('scroll', tableScroll);
  * Отображение начальных строк в таблице, при инициализации и после очистки поля для поиска
  */
 function addFirstRows() {
+    clearTable();
     if (dataCount > rowsToPage) {
         for (let i = 0; i < rowsToPage; i++) {
             insertRow(data[i]);
@@ -131,18 +132,20 @@ function createHead(options) {
 
 /**
  * Создаёт ячейку для заголовка таблицы
- * @param {*} name 
+ * @param {*} title 
  * @returns 
  */
-function addHeaderCell(name){
-    return `<th><span class="d-flex justify-content-between align-items-center">
-    <span>${name}</span>
-    <button type="button" class="btn btn-outline-primary border-0">
+function addHeaderCell(title) {
+    let cell = `<th><span class="d-flex justify-content-between align-items-center">
+    <span>${title}</span>
+    <button type="button" class="btn btn-outline-primary border-0" onclick="sortData(${title})">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-up" viewBox="0 0 16 16">
     <path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z"/>
     </svg>
     </button>
     </span></th>`;
+
+    return cell;
 }
 
 /**
@@ -228,10 +231,28 @@ function searchBtable(input) {
         //Если поле для поиска пустое
         itsSearchProcess = false;
         findItems = 0;
-        clearTable(); //очистка таблицы перед поиском
+        //clearTable(); //очистка таблицы перед поиском
         addFirstRows();
     }
 }
+
+
+/* function sortData(keyName) {
+    data.sort((a, b) => {
+        //console.log(a.id);
+        const nameA = a[keyName];
+        const nameB = b[keyName];
+        if (nameA < nameB) {
+            return -1;
+        }
+        if (nameA > nameB) {
+            return 1;
+        }
+        return 0;
+    });
+    data = data.reverse();
+    addFirstRows();
+} */
 
 /**
  * Удаляет все строки с тела таблицы
