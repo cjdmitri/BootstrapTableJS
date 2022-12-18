@@ -1,0 +1,1 @@
+<h1>Bootstrap Table JS</h1>
