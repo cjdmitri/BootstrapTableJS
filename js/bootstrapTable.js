@@ -1,265 +1,419 @@
-let table; //Таблица данных
-let endBtable; //Элемент окончания таблицы
-let data; //Данные JSON
-
-//Данный для ленивой загрузки
-let dataCount;
-let pagesTotal = 0;
-let pageCurrent = 0;
-let rowsToPage = 50;
-
-//В данный момент идет процесс поиска
-let itsSearchProcess = false;
 
 //Настройки по умолчанию.
 //Применяются, если не были указаны настройки
 let optionsDefault = {
     itemsToPage: 50,
-    //headRow:['id', 'Name', 'Email', 'Phone']
+    hiddenColumns: ["phone"],
+    renameColumn: [
+        {
+            key: "id",
+            replace: "ИД"
+        },
+        {
+            key: "verify",
+            replace: "Проверен"
+        }
+    ],
+    replace: [
+        {
+            value: "true",
+            key: "verify",
+            replace: `<span class="badge text-bg-success">да</span>`
+        },
+        {
+            value: "false",
+            key: "verify",
+            replace: `<span class="badge text-bg-warning">нет</span>`
+        }
+    ]
 };
 
+class BsTable {
+    //Settings
+    options; //Основные настройки приложения переданные при создании таблицы в конструктор
 
-/**
- * Начальная инициализация таблицы
- * @param {*} idTable 
- * @param {*} datat 
- * @param {*} options 
- */
-function initBtable(idTable, datat, options = optionsDefault) {
-    try {
-        table = document.getElementById(idTable);
-        data = datat;
-        calculatePages(options);
-        let pnode = table.parentNode; //Контейнер, в который была помещена таблица
+    //Elements
+    container; //Контейнер для всех элементов управления и таблицы
+    table; //Таблица данных
+    tbody; //Тело таблицы данных
+    endBtable; //Элемент для определения конца таблицы и необходимости отображения новых данных
+    noDataMsg; //Сообщение об отсутствии данных для отображения
 
-        //Создаём новый контейнер для элементов и таблицы
-        let container = document.createElement('div');
+    //Данные
+    data; //Массив объектов данных полученных при создании таблицы в конструктор
+    dataCount;
+    pagesTotal = 0; //Количество страниц для загрузки при скроле страницы
+    pageCurrent = 0; //текущая страница
+    rowsToPage = 50; //Количество элементов на страницу, переопределяется через options
+    searchResultData = []; //Массив с результатами посика
 
-        //Оборачиваем таблицу в контейнер
-        let contTable = document.createElement('div');
-        contTable.style.overflowX = 'auto';
-        contTable.classList.add('mt-3');
-        contTable.append(table);
+    //Состояние
+    itsSearchProcess = false; //В данный момент идет процесс поиска
 
-        //Создаём элемент для отслеживания окончания таблицы при пролистывании
-        endBtable = document.createElement('span');
-        endBtable.id = 'endBtable';
 
-        contTable.append(table);
-        contTable.append(endBtable);
 
-        container.append(headerTable(options));
-        container.append(contTable);
-        container.append(footerTable(options));
-        pnode.append(container);
+    constructor(idTable, datat, options = optionsDefault) {
+        try {
+            this.table = document.getElementById(idTable);
+            this.data = datat;
+            this.options = options;
+            this.calculatePages();
+            let pnode = this.table.parentNode; //Контейнер, в который была помещена таблица
 
-        createHead(options);
-        addFirstRows();
-    } catch (error) {
-        alert(`При инициализации произошла ошибка: ${error}`)
-    }
-}
+            //Создаём новый контейнер для элементов и таблицы
+            this.container = document.createElement('div');
 
-window.addEventListener('scroll', tableScroll);
+            //Оборачиваем таблицу в контейнер
+            let contTable = document.createElement('div');
+            contTable.style.overflowX = 'auto';
+            contTable.classList.add('mt-3');
+            contTable.append(this.table);
 
-/**
- * Отображение начальных строк в таблице, при инициализации и после очистки поля для поиска
- */
-function addFirstRows() {
-    clearTable();
-    if (dataCount > rowsToPage) {
-        for (let i = 0; i < rowsToPage; i++) {
-            insertRow(data[i]);
+            //Создаём элемент для отслеживания окончания таблицы при пролистывании
+            this.endBtable = document.createElement('span');
+            this.endBtable.id = 'endBtable';
+
+            contTable.append(this.table);
+            contTable.append(this.endBtable);
+
+            this.container.append(this.createHeaderTable());
+            this.container.append(contTable);
+            this.container.append(this.craeteFooterTable());
+            pnode.append(this.container);
+
+            this.createTHeadRow();
+            this.createTBoby();
+            this.addFirstRows();
+
+            window.addEventListener('scroll', event => {
+                this.tableScroll();
+            }, false);
+
+            console.log("BsTable created!");
+        } catch (error) {
+            alert(`При инициализации произошла ошибка: ${error}`)
         }
-    } else {
-        for (let i = 0; i < data.length; i++) {
-            insertRow(data[i]);
-        }
     }
-}
 
-/**
- * Получаем количество страниц ленивой загрузки
- * @param {*} options 
- */
-function calculatePages(options) {
-    if (options.itemsToPage != undefined) {
-        rowsToPage = parseInt(options.itemsToPage);
-    }
-    dataCount = data.length;
-    pagesTotal = dataCount / rowsToPage;
-    if (dataCount % rowsToPage > 0) {
-        pagesTotal++;
-    }
-    console.log('Total pages: ' + pagesTotal);
-    console.log('Items count: ' + dataCount);
-}
 
-/**
- * Добавляет строку в таблицу
- * @param {*} dataItem 
- */
-function insertRow(dataItem) {
-    let row = table.insertRow();
-    for (let key in dataItem) {
-        row.innerHTML += `<td>${dataItem[key]}</td>`;
-    }
-}
 
-/**
- * Создание строки заголовка таблицы
- * @param {*} options 
- */
-function createHead(options) {
-    let thead = table.querySelector('thead');
-    if (thead === null) {
-        if (options.headRow != undefined) {
-            thead = table.createTHead();
-            let row = thead.insertRow();
-            for (let i = 0; i < options.headRow.length; i++) {
-                row.innerHTML += addHeaderCell(options.headRow[i]);
+    /**
+     * Отображение начальных строк в таблице, при инициализации и после очистки поля для поиска
+     */
+    addFirstRows() {
+        this.clearTable();
+        if (this.dataCount > this.rowsToPage) {
+            for (let i = 0; i < this.rowsToPage; i++) {
+                this.insertRow(this.data[i]);
             }
         } else {
-            thead = table.createTHead();
-            let row = thead.insertRow();
-            for (let key in data[0]) {
-                //если не указан хедер то устанавливаем из названия полей
-                row.innerHTML += addHeaderCell(key);
+            for (let i = 0; i < this.data.length; i++) {
+                this.insertRow(data[i]);
             }
         }
     }
-}
 
-/**
- * Создаёт ячейку для заголовка таблицы
- * @param {*} title 
- * @returns 
- */
-function addHeaderCell(title) {
-    let cell = `<th><span class="d-flex justify-content-between align-items-center">
-    <span>${title}</span>
-    <button type="button" class="btn btn-outline-primary border-0" onclick="sortData(${title})">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-up" viewBox="0 0 16 16">
-    <path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z"/>
-    </svg>
-    </button>
-    </span></th>`;
 
-    return cell;
-}
+    /**
+     * Добавляет строку в таблицу
+     * @param {*} dataItem - объект массива data
+     */
+    insertRow(dataItem) {
+        //console.log('Insert Row');
+        let row = this.tbody.insertRow();
+        for (let key in dataItem) {
+            //Проверяем, следует ли исключить определённые поля
+            if (this.options.hiddenColumns != undefined) {
+                if (this.options.hiddenColumns.indexOf(key.toString()) > -1) {
+                    continue;
+                }
+            }
+            let newCell = row.insertCell();
+            newCell.innerHTML = `${this.replaceData(dataItem[key], key)}`
+        }
 
-/**
- * Верхний контейнер с элементами управления и строкой поиска
- * @param {*} options 
- * @returns 
- */
-function headerTable(options) {
-    let div = document.createElement('div');
-    let header = `<div class="row">
-    <div class="col-6">
-    <input class="form-control" type="search" placeholder="Найти" oninput="searchBtable(this)">
-    </div>
-    </div>`;
-    div.innerHTML = header;
-    return div;
-}
+        row.addEventListener('click', event => {
+            console.log('Row click');
+        }, false)
+    }
 
-/**
- * Нижний контейнер с элементами управления
- * @param {*} options 
- * @returns 
- */
-function footerTable(options) {
-    let div = document.createElement('div');
-    let noDataMsg = `<div class="text-center p-2 text-muted" id="btabNoData" hidden>Нет данных для отображения</div>`;
-    div.innerHTML += noDataMsg;
-    return div;
-}
+    /**
+     * Получаем количество страниц ленивой загрузки
+     */
+    calculatePages() {
+        if (this.options.itemsToPage != undefined) {
+            this.rowsToPage = parseInt(this.options.itemsToPage);
+        }
+        this.dataCount = this.data.length;
+        this.pagesTotal = this.dataCount / this.rowsToPage;
+        if (this.dataCount % this.rowsToPage > 0) {
+            this.pagesTotal++;
+        }
+        console.log('Total pages: ' + this.pagesTotal);
+        console.log('Items count: ' + this.dataCount);
+    }
 
-/**
- * Действия при скроле страницы
- */
-function tableScroll() {
-    //endBtable = document.getElementById('endBtable');
-    if (endBtable !== null) {
-        const windowHeight = window.innerHeight;
+    /**
+     * Замена строки данных строкой из options.replace
+     * @param {*} value - данные, которые следует заменить
+     * @param {*} key - в каком поле данных следует произвести замену
+     * @returns 
+     */
+    replaceData(value, key) {
+        let newValue = value;
+        if (this.options.replace != undefined) {
+            for (let i = 0; i < this.options.replace.length; i++) {
+                if (this.options.replace[i].value.indexOf(value) > -1 && this.options.replace[i].key.indexOf(key) > -1) {
+                    newValue = this.options.replace[i].replace;
+                }
+            }
+        }
+        return newValue;
+    }
 
-        const boundingRect = endBtable.getBoundingClientRect();
-        const yPosition = boundingRect.top - windowHeight;
-        //console.log(yPosition);
-        //Если еще не достигнут конец ленивой загрузки
-        if (yPosition < 500) {
-            if (pageCurrent < pagesTotal) {
-                pageCurrent++;
-                for (let i = pageCurrent * rowsToPage; i < rowsToPage * (pageCurrent + 1); i++) {
-                    insertRow(data[i]);
+
+
+
+    /**
+     * Создание строки заголовка таблицы
+     */
+    createTHeadRow() {
+        //let thead = this.table.querySelector('thead');
+        //if (thead === null) {
+        this.thead = this.table.createTHead();
+        let row = this.thead.insertRow();
+
+        for (let key in this.data[0]) {
+            //Проверяем, следует ли исключить определённые поля
+            if (this.options.hiddenColumns != undefined) {
+                if (this.options.hiddenColumns.indexOf(key.toString()) > -1) {
+                    continue;
+                }
+            }
+            if (this.options.renameColumn != undefined) {
+                let matched = false;
+                for (let i = 0; i < this.options.renameColumn.length; i++) {
+                    if (this.options.renameColumn[i].key.indexOf(key) > -1) {
+                        let newValue = this.options.renameColumn[i].replace;
+                        row.appendChild(this.addHeaderTableCell(key, newValue));
+                        //newValue = this.options.renameColumn[i].replace;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    row.appendChild(this.addHeaderTableCell(key, key));
+                }
+            } else {
+                row.appendChild(this.addHeaderTableCell(key, key));
+            }
+        }
+        //}
+    }
+
+    createTBoby() {
+        this.tbody = this.table.querySelector('tbody');
+        //console.log(tbody);
+        if (this.tbody === null || this.tbody === undefined) {
+            this.tbody = document.createElement('tbody');
+            this.table.appendChild(this.tbody);
+        }
+    }
+
+    /**
+     * Создаёт ячейку для заголовка таблицы
+     * @param {*} key 
+     * @param {*} title 
+     * @returns 
+     */
+    addHeaderTableCell(key, title) {
+        let cell = document.createElement('th');
+        let spanCont = document.createElement('span');
+        spanCont.classList.add('d-flex', 'justify-content-between', 'align-items-center');
+
+        let spanTitle = document.createElement('span');
+        spanTitle.classList.add('me-2');
+        spanTitle.innerHTML = `${title}`;
+
+        let btnSort = document.createElement('button');
+        btnSort.classList.add('btn', 'btn-outline-primary', 'border-0');
+        btnSort.addEventListener('click', event => {
+            this.sortData(`${key}`);
+            console.log(`Sort by: ${key}`);
+        }, false);
+        btnSort.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-up" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z"/>
+        </svg>`;
+
+        spanCont.appendChild(spanTitle);
+        spanCont.appendChild(btnSort);
+        cell.appendChild(spanCont);
+
+        return cell;
+    }
+
+    /**
+     * Верхний контейнер с элементами управления и строкой поиска
+     * @returns 
+     */
+    createHeaderTable() {
+        let div = document.createElement('div');
+        div.classList.add('row');
+
+        let leftHeader = document.createElement('div');
+        leftHeader.classList.add('col-6');
+
+        let sInput = document.createElement('input');
+        sInput.classList.add('form-control');
+        sInput.setAttribute('type', 'search');
+        sInput.setAttribute('placeholder', 'Найти');
+        sInput.setAttribute('id', 'searchBTableInput');
+        sInput.addEventListener('input', event => {
+            this.searchBtable();
+        }, false);
+
+        leftHeader.appendChild(sInput);
+        div.appendChild(leftHeader);
+
+        return div;
+    }
+
+    /**
+     * Нижний контейнер с элементами управления
+     * @returns 
+     */
+    craeteFooterTable() {
+        let div = document.createElement('div');
+        this.noDataMsg = document.createElement('div');
+        this.noDataMsg.classList.add('text-center', 'p-2', 'text-muted');
+        this.noDataMsg.hidden = true;
+        this.noDataMsg.innerHTML = 'Нет данных для отображения';
+        div.appendChild(this.noDataMsg);
+        return div;
+    }
+
+    /**
+     * Действия при скроле страницы
+     */
+    tableScroll() {
+        //console.log('Scroll...');
+        //endBtable = document.getElementById('endBtable');
+        //Если в данный момент не происходит поиска записей
+        if (this.endBtable !== null && !this.itsSearchProcess) {
+            const windowHeight = window.innerHeight;
+
+            const boundingRect = this.endBtable.getBoundingClientRect();
+            const yPosition = boundingRect.top - windowHeight;
+            //console.log(yPosition);
+
+            if (yPosition < 500) {
+                if (this.pageCurrent < this.pagesTotal) {
+                    this.pageCurrent++;
+                    for (let i = this.pageCurrent * this.rowsToPage; i < this.rowsToPage * (this.pageCurrent + 1); i++) {
+                        this.insertRow(this.data[i]);
+                    }
                 }
             }
         }
     }
-}
 
-/**
- * Поиск по данным и вывод результата
- * @param {*} input 
- */
-function searchBtable(input) {
-    console.log(input.value);
-    let btabNoData = document.getElementById('btabNoData');
-    btabNoData.hidden = true;
-    let sText = input.value;
-    pageCurrent = 0; //сбрасываем текущую страницу ленивой загрузки
-    let findItems = 0;
-    if (input.value.length > 0) {
-        itsSearchProcess = true;
-        clearTable(); //очистка таблицы перед поиском
-        for (let i = 0; i < data.length; i++) {
-            for (let key in data[i]) {
-                //console.log(data[i][key]);
-                if (data[i][key].toString().indexOf(sText) > -1) {
-                    insertRow(data[i]);
-                    findItems++;
-                    break;
+    /**
+     * Поиск по данным и вывод результата
+     */
+    searchBtable() {
+        let searchBTableInput = document.getElementById('searchBTableInput');
+        console.log(searchBTableInput.value);
+        this.noDataMsg.hidden = true;
+        let sText = searchBTableInput.value;
+        this.pageCurrent = 0; //сбрасываем текущую страницу ленивой загрузки
+        //let findItems = 0;
+        if (searchBTableInput.value.length > 0) {
+            this.itsSearchProcess = true;
+            this.clearTable(); //очистка таблицы перед поиском
+            this.searchResultData = [];
+            for (let i = 0; i < this.data.length; i++) {
+                for (let key in this.data[i]) {
+                    //Проверяем, следует ли исключить определённые поля
+                    if (this.options.hiddenColumns != undefined) {
+                        if (this.options.hiddenColumns.indexOf(key.toString()) > -1) {
+                            continue;
+                        }
+                    }
+                    //console.log(data[i][key]);
+                    if (this.data[i][key].toString().indexOf(sText) > -1) {
+                        this.insertRow(this.data[i]);
+                        //this.findItems++;
+                        this.searchResultData.push(this.data[i])
+                        break;
+                    }
                 }
             }
+            console.log('Find items: ' + this.searchResultData.length);
+            if (this.searchResultData.length == 0) {
+                this.noDataMsg.hidden = false;
+            }
+        } else {
+            //Если поле для поиска пустое
+            this.itsSearchProcess = false;
+            //findItems = 0;
+            this.searchResultData = [];
+            //clearTable(); //очистка таблицы перед поиском
+            this.addFirstRows();
         }
-        console.log('Find items: ' + findItems);
-        if (findItems == 0) {
-            btabNoData.hidden = false;
-        }
-    } else {
-        //Если поле для поиска пустое
-        itsSearchProcess = false;
-        findItems = 0;
-        //clearTable(); //очистка таблицы перед поиском
-        addFirstRows();
     }
+
+    itsSortReverse = false; //Отслеживает изменение порядка сортировки
+    /**
+     * Сортировка данных по названию ключа
+     * @param {*} keyName - название ключа
+     */
+    sortData(keyName) {
+        let sortDataArray = [];
+        //Если производится поиск записей и есть результаты поиска, то сортируем только их
+        if (this.searchResultData.length > 0 && this.itsSearchProcess) {
+            sortDataArray = this.searchResultData;
+        } else {
+            sortDataArray = this.data;
+        }
+
+        sortDataArray.sort((a, b) => {
+            const nameA = a[keyName];
+            const nameB = b[keyName];
+            if (nameA < nameB) {
+                return -1;
+            }
+            if (nameA > nameB) {
+                return 1;
+            }
+            return 0;
+        });
+        if (this.itsSortReverse) {
+            sortDataArray = sortDataArray.reverse();
+        }
+        this.itsSortReverse = !this.itsSortReverse;
+
+        //Если происходит сортировка результатов поиска, то отображаем все результаты поиска
+        //Иначе отображаем только необходимое количество записей, остальное показываем при пролистывании
+        if (this.searchResultData.length > 0 && this.itsSearchProcess) {
+            this.clearTable();
+            this.searchResultData = sortDataArray;
+            for (let i = 0; i < this.searchResultData.length; i++) {
+                this.insertRow(this.searchResultData[i]);
+            }
+        } else {
+            this.addFirstRows();
+        }
+    }
+
+    /**
+     * Удаляет все строки с тела таблицы
+     */
+    clearTable() {
+        let count = this.table.rows.length;
+        for (let i = count - 1; i > 0; i--) {
+            this.table.deleteRow(i);
+        }
+    }
+
 }
 
-
-/* function sortData(keyName) {
-    data.sort((a, b) => {
-        //console.log(a.id);
-        const nameA = a[keyName];
-        const nameB = b[keyName];
-        if (nameA < nameB) {
-            return -1;
-        }
-        if (nameA > nameB) {
-            return 1;
-        }
-        return 0;
-    });
-    data = data.reverse();
-    addFirstRows();
-} */
-
-/**
- * Удаляет все строки с тела таблицы
- */
-function clearTable() {
-    let count = table.rows.length;
-    for (let i = count - 1; i > 0; i--) {
-        table.deleteRow(i);
-    }
-}
