@@ -1,9 +1,12 @@
 
-//Настройки по умолчанию.
-//Применяются, если не были указаны настройки
+/**
+ * Настройки по умолчанию. Применяются, если не были указан options
+ */
 let optionsDefault = {
     itemsToPage: 50,
     hiddenColumns: ["phone"],
+    tableHeight: "500px",
+    fixedHeaderTable: true,
     renameColumn: [
         {
             key: "id",
@@ -12,6 +15,14 @@ let optionsDefault = {
         {
             key: "verify",
             replace: "Проверен"
+        },
+        {
+            key: "name",
+            replace: "Имя"
+        },
+        {
+            key: "email",
+            replace: "Email"
         }
     ],
     replace: [
@@ -24,7 +35,16 @@ let optionsDefault = {
             value: "false",
             key: "verify",
             replace: `<span class="badge text-bg-warning">нет</span>`
+        },
+        {
+            value: "{value}",
+            key: "name",
+            replace: `<a href="{value}" target="_blank">{value}</a>`
         }
+    ],
+    actions: [
+        `<a class="btn btn-sm btn-primary" href="/api/edite/{id}">Редактировать</a>`,
+        `<a class="btn btn-sm btn-danger" href="javascript:remove('{name}')">Удалить</a>`
     ]
 };
 
@@ -38,10 +58,12 @@ class BsTable {
     tbody; //Тело таблицы данных
     endBtable; //Элемент для определения конца таблицы и необходимости отображения новых данных
     noDataMsg; //Сообщение об отсутствии данных для отображения
+    contTable; //Контейнер для таблицы
 
     //Данные
     data; //Массив объектов данных полученных при создании таблицы в конструктор
-    dataCount;
+    //activeItemData; //Выбранный элемент
+    //dataCount;
     pagesTotal = 0; //Количество страниц для загрузки при скроле страницы
     pageCurrent = 0; //текущая страница
     rowsToPage = 50; //Количество элементов на страницу, переопределяется через options
@@ -49,63 +71,112 @@ class BsTable {
 
     //Состояние
     itsSearchProcess = false; //В данный момент идет процесс поиска
+    needScroll = false;
 
 
-
+    /**
+     * 
+     * @param {string} idTable - идентификатор таблицы
+     * @param {Array} datat - массив данных таблицы
+     * @param {object} options - настройки таблицы (не обязательный параметр)
+     */
     constructor(idTable, datat, options = optionsDefault) {
-        try {
-            this.table = document.getElementById(idTable);
-            this.data = datat;
-            this.options = options;
-            this.calculatePages();
-            let pnode = this.table.parentNode; //Контейнер, в который была помещена таблица
+        //try {
+        this.table = document.getElementById(idTable);
+        this.data = datat;
+        this.options = options;
+        this.#calculatePages();
+        let pnode = this.table.parentNode; //Контейнер, в который была помещена таблица
 
-            //Создаём новый контейнер для элементов и таблицы
-            this.container = document.createElement('div');
+        //Создаём новый контейнер для элементов и таблицы
+        this.container = document.createElement('div');
 
-            //Оборачиваем таблицу в контейнер
-            let contTable = document.createElement('div');
-            contTable.style.overflowX = 'auto';
-            contTable.classList.add('mt-3');
-            contTable.append(this.table);
-
-            //Создаём элемент для отслеживания окончания таблицы при пролистывании
-            this.endBtable = document.createElement('span');
-            this.endBtable.id = 'endBtable';
-
-            contTable.append(this.table);
-            contTable.append(this.endBtable);
-
-            this.container.append(this.createHeaderTable());
-            this.container.append(contTable);
-            this.container.append(this.craeteFooterTable());
-            pnode.append(this.container);
-
-            this.createTHeadRow();
-            this.createTBoby();
-            this.addFirstRows();
-
-            window.addEventListener('scroll', event => {
-                this.tableScroll();
-            }, false);
-
-            console.log("BsTable created!");
-        } catch (error) {
-            alert(`При инициализации произошла ошибка: ${error}`)
+        //Оборачиваем таблицу в контейнер
+        this.contTable = document.createElement('div');
+        this.contTable.style.overflowX = 'auto';
+        this.contTable.classList.add('mt-3', 'position-relative');
+        if (this.options.tableHeight != undefined) {
+            this.contTable.style.height = this.options.tableHeight.toString();
         }
+        this.contTable.append(this.table);
+
+        //Создаём элемент для отслеживания окончания таблицы при пролистывании
+        this.endBtable = document.createElement('span');
+        this.endBtable.id = 'endBtable';
+
+        this.contTable.append(this.table);
+        this.contTable.append(this.endBtable);
+
+        this.container.append(this.#createHeaderTable());
+        this.container.append(this.contTable);
+        this.container.append(this.#craeteFooterTable());
+        pnode.append(this.container);
+
+        this.#createTHeadRow();
+        this.#createTBoby();
+        this.#addFirstRows();
+        this.#watchNeedAppend();
+        if(this.options.actions != undefined){
+            this.#actionRowCreate();
+        }
+        
+
+        //window.addEventListener('scroll', event => {this.#tableScroll();}, false); 
+
+        console.log("BsTable created!");
+        //} catch (error) {
+        //alert(`При инициализации произошла ошибка: ${error}`)
+        //}
     }
 
+    /**
+     * Отслеживает позицию конца таблицы и при необходимости подгружает данные
+     */
+    #watchNeedAppend() {
+        setInterval(() => {
+            if (!this.itsSearchProcess && this.data.length > this.rowsToPage) {
+                if (this.pageCurrent < this.pagesTotal && this.#needMoreLoadData()) {
+                    //console.log("watchNeedAppend");
+                    this.#tableScroll();
+                }
+            }
+        }, 500);
+    }
+
+    /**
+     * Для активного элемента данных создаём get, set. Для отсеживания изменений
+     */
+    #activeItemData;
+
+    get activeItemData() {
+        return this.#activeItemData;
+    }
+
+    set activeItemData(value) {
+        this.#activeItemData = value;
+
+        //this.#label.innerHTML=value.id;
+        //console.log(value);
+    }
 
 
     /**
      * Отображение начальных строк в таблице, при инициализации и после очистки поля для поиска
      */
-    addFirstRows() {
+    #addFirstRows() {
         this.clearTable();
-        if (this.dataCount > this.rowsToPage) {
+        if (this.data.length > this.rowsToPage) {
             for (let i = 0; i < this.rowsToPage; i++) {
                 this.insertRow(this.data[i]);
             }
+
+            /* //Если окончание таблицы находится в поле видимости экрана
+            //и если нет полосы прокрутки,
+            //то подгружаем данные до сокрытия окончания таблицы
+            while(this.#needMoreLoadData()){
+                this.#tableScroll();
+            } */
+
         } else {
             for (let i = 0; i < this.data.length; i++) {
                 this.insertRow(data[i]);
@@ -116,10 +187,9 @@ class BsTable {
 
     /**
      * Добавляет строку в таблицу
-     * @param {*} dataItem - объект массива data
+     * @param {object} dataItem - объект массива data
      */
     insertRow(dataItem) {
-        //console.log('Insert Row');
         let row = this.tbody.insertRow();
         for (let key in dataItem) {
             //Проверяем, следует ли исключить определённые поля
@@ -129,41 +199,135 @@ class BsTable {
                 }
             }
             let newCell = row.insertCell();
-            newCell.innerHTML = `${this.replaceData(dataItem[key], key)}`
+            newCell.innerHTML = `${this.#replaceData(dataItem[key], dataItem, key)}`
         }
+        row.addEventListener('click', event => { this.#rowClicked(dataItem, row) }, false)
+        row.addEventListener('mouseenter', event => { this.#rowMouseenter(dataItem, row) }, false)
+        row.addEventListener('mouseleave', event => { this.#rowMouseleave(dataItem, row) }, false)
+    }
 
-        row.addEventListener('click', event => {
-            console.log('Row click');
-        }, false)
+    /**
+     * Действия при клике по строке таблицы
+     * @param {object} dataItem - объект массива data
+     * @param {object} row - строка таблицы
+     */
+    #rowClicked(dataItem, row) {
+        this.activeItemData = dataItem;
+        if(this.options.actions != undefined){
+            this.#actionRow.hidden = false;
+            this.#actionRow.style.top = row.offsetTop + 'px';
+            this.#actionRow.classList.remove('d-none');
+    
+            this.#actionRowButtonsGroup.innerHTML = null;
+            if (this.options.actions != undefined) {
+                for (let i = 0; i < this.options.actions.length; i++) {
+                    let actionItem = this.options.actions[i];
+                    for (let key in dataItem) {
+                        let keyRepl = `{${key}}`;
+                        actionItem = actionItem.replaceAll(keyRepl, dataItem[key]);
+                    }
+                    this.#actionRowButtonsGroup.innerHTML += actionItem;
+                }
+            }
+        }
+    }
+
+
+
+    #rowMouseenter(dataItem, row) { }
+
+    #rowMouseleave(dataItem, row) { }
+
+    /** 
+     * Визуальная строка управления отдельной записью в таблице
+     */
+    #actionRow;
+    #actionRowButtonsGroup;
+    /**
+     * Создание строки управления записью
+     */
+    #actionRowCreate() {
+        this.#actionRow = document.createElement('div');
+        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between');
+        this.#actionRow.style.width = "100%";
+        this.#actionRow.style.zIndex = "1000";
+        this.#actionRow.style.left = "0px";
+        this.#actionRow.style.top = "0px";
+        this.#actionRow.style.transition = "all 0.2s ease 0s";
+        this.#actionRow.hidden = true;
+
+        //Actions
+        this.#actionRowButtonsGroup = document.createElement('div');
+        this.#actionRowButtonsGroup.classList.add('btn-group');
+        //btnGroup.innerHTML = '<button type="button" class="btn btn-sm btn-primary">Primary</button>';
+        this.#actionRow.append(this.#actionRowButtonsGroup);
+
+        //hidden button
+        let hiddenBtn = document.createElement('button');
+        hiddenBtn.type = 'button';
+        hiddenBtn.classList.add('btn-close');
+        this.#actionRow.append(hiddenBtn);
+        hiddenBtn.addEventListener('click', event => {
+            this.#actionRowHide();
+        }, false);
+
+        //this.#label= document.createElement('p');
+        //this.#actionRow.append(this.#label);
+
+        this.contTable.append(this.#actionRow);
+    }
+
+    /**
+     * Скрыть строку управления записью
+     */
+    #actionRowHide() {
+        if(this.options.actions != undefined && this.#actionRow != null){
+            this.#actionRow.hidden = true;
+            this.#actionRow.classList.add('d-none');
+        }
     }
 
     /**
      * Получаем количество страниц ленивой загрузки
      */
-    calculatePages() {
+    #calculatePages() {
         if (this.options.itemsToPage != undefined) {
             this.rowsToPage = parseInt(this.options.itemsToPage);
         }
-        this.dataCount = this.data.length;
-        this.pagesTotal = this.dataCount / this.rowsToPage;
-        if (this.dataCount % this.rowsToPage > 0) {
+        this.data.length = this.data.length;
+        this.pagesTotal = Math.round(this.data.length / this.rowsToPage);
+        let p = this.data.length % this.rowsToPage;
+        if (p > 0) {
             this.pagesTotal++;
         }
         console.log('Total pages: ' + this.pagesTotal);
-        console.log('Items count: ' + this.dataCount);
+        console.log('Items count: ' + this.data.length);
     }
 
     /**
      * Замена строки данных строкой из options.replace
      * @param {*} value - данные, которые следует заменить
+     * @param {*} dataItem - объект, данные которого следует заменит
      * @param {*} key - в каком поле данных следует произвести замену
      * @returns 
      */
-    replaceData(value, key) {
+    #replaceData(value, dataItem, key) {
         let newValue = value;
         if (this.options.replace != undefined) {
             for (let i = 0; i < this.options.replace.length; i++) {
-                if (this.options.replace[i].value.indexOf(value) > -1 && this.options.replace[i].key.indexOf(key) > -1) {
+                //Если необходимо заменить любое значение свойства
+                if (this.options.replace[i].value === '{value}') {
+                    //for(let k in dataItem){
+                    if (key === this.options.replace[i].key) {
+                        //console.log("{value} find. value: " + dataItem[key]);
+                        let value = dataItem[key];
+                        newValue = this.options.replace[i].replace.replaceAll('{value}', value);
+                        //console.log(newValue);
+                    }
+                    //}
+
+                } else if (this.options.replace[i].value.indexOf(value) > -1 && this.options.replace[i].key.indexOf(key) > -1) {
+                    //Если необходимо заменить только точное совпадение с указанным
                     newValue = this.options.replace[i].replace;
                 }
             }
@@ -171,16 +335,17 @@ class BsTable {
         return newValue;
     }
 
-
-
-
     /**
      * Создание строки заголовка таблицы
      */
-    createTHeadRow() {
+    #createTHeadRow() {
         //let thead = this.table.querySelector('thead');
         //if (thead === null) {
         this.thead = this.table.createTHead();
+        if (this.options.fixedHeaderTable === true) {
+            this.thead.classList.add("sticky-top", "bg-white", "shadow");
+        }
+
         let row = this.thead.insertRow();
 
         for (let key in this.data[0]) {
@@ -195,23 +360,26 @@ class BsTable {
                 for (let i = 0; i < this.options.renameColumn.length; i++) {
                     if (this.options.renameColumn[i].key.indexOf(key) > -1) {
                         let newValue = this.options.renameColumn[i].replace;
-                        row.appendChild(this.addHeaderTableCell(key, newValue));
+                        row.appendChild(this.#addHeaderTableCell(key, newValue));
                         //newValue = this.options.renameColumn[i].replace;
                         matched = true;
                         break;
                     }
                 }
                 if (!matched) {
-                    row.appendChild(this.addHeaderTableCell(key, key));
+                    row.appendChild(this.#addHeaderTableCell(key, key));
                 }
             } else {
-                row.appendChild(this.addHeaderTableCell(key, key));
+                row.appendChild(this.#addHeaderTableCell(key, key));
             }
         }
         //}
     }
 
-    createTBoby() {
+    /**
+     * Создаёт тело таблицы (tbody) при его отсутствии
+     */
+    #createTBoby() {
         this.tbody = this.table.querySelector('tbody');
         //console.log(tbody);
         if (this.tbody === null || this.tbody === undefined) {
@@ -220,13 +388,15 @@ class BsTable {
         }
     }
 
+
+
     /**
      * Создаёт ячейку для заголовка таблицы
-     * @param {*} key 
-     * @param {*} title 
-     * @returns 
+     * @param {*} key - ключ объекта
+     * @param {*} title - отображаемый заголовок
+     * @returns - ячейка строки заголовка таблицы <th>
      */
-    addHeaderTableCell(key, title) {
+    #addHeaderTableCell(key, title) {
         let cell = document.createElement('th');
         let spanCont = document.createElement('span');
         spanCont.classList.add('d-flex', 'justify-content-between', 'align-items-center');
@@ -256,7 +426,7 @@ class BsTable {
      * Верхний контейнер с элементами управления и строкой поиска
      * @returns 
      */
-    createHeaderTable() {
+    #createHeaderTable() {
         let div = document.createElement('div');
         div.classList.add('row');
 
@@ -269,7 +439,7 @@ class BsTable {
         sInput.setAttribute('placeholder', 'Найти');
         sInput.setAttribute('id', 'searchBTableInput');
         sInput.addEventListener('input', event => {
-            this.searchBtable();
+            this.search(sInput.value);
         }, false);
 
         leftHeader.appendChild(sInput);
@@ -282,7 +452,7 @@ class BsTable {
      * Нижний контейнер с элементами управления
      * @returns 
      */
-    craeteFooterTable() {
+    #craeteFooterTable() {
         let div = document.createElement('div');
         this.noDataMsg = document.createElement('div');
         this.noDataMsg.classList.add('text-center', 'p-2', 'text-muted');
@@ -293,25 +463,30 @@ class BsTable {
     }
 
     /**
+     * Если окончание таблицы в поле видимости экрана, то true
+     * @returns 
+     */
+    #needMoreLoadData() {
+        const windowHeight = window.innerHeight;
+        const boundingRect = this.endBtable.getBoundingClientRect();
+        const yPosition = boundingRect.top - windowHeight;
+        if (yPosition < 500) {
+            return true;
+        }
+        return false;
+    }
+
+
+    /**
      * Действия при скроле страницы
      */
-    tableScroll() {
-        //console.log('Scroll...');
-        //endBtable = document.getElementById('endBtable');
+    #tableScroll() {
         //Если в данный момент не происходит поиска записей
-        if (this.endBtable !== null && !this.itsSearchProcess) {
-            const windowHeight = window.innerHeight;
-
-            const boundingRect = this.endBtable.getBoundingClientRect();
-            const yPosition = boundingRect.top - windowHeight;
-            //console.log(yPosition);
-
-            if (yPosition < 500) {
-                if (this.pageCurrent < this.pagesTotal) {
-                    this.pageCurrent++;
-                    for (let i = this.pageCurrent * this.rowsToPage; i < this.rowsToPage * (this.pageCurrent + 1); i++) {
-                        this.insertRow(this.data[i]);
-                    }
+        if (!this.itsSearchProcess && this.#needMoreLoadData()) {
+            if (this.pageCurrent < this.pagesTotal) {
+                this.pageCurrent++;
+                for (let i = this.pageCurrent * this.rowsToPage; i < this.rowsToPage * (this.pageCurrent + 1); i++) {
+                    this.insertRow(this.data[i]);
                 }
             }
         }
@@ -319,15 +494,17 @@ class BsTable {
 
     /**
      * Поиск по данным и вывод результата
+     * @param {*} sText - текст для поиска совпадений
      */
-    searchBtable() {
-        let searchBTableInput = document.getElementById('searchBTableInput');
+    search(sText) {
+        this.#actionRowHide();
+        //let searchBTableInput = document.getElementById('searchBTableInput');
         console.log(searchBTableInput.value);
         this.noDataMsg.hidden = true;
-        let sText = searchBTableInput.value;
+        //let sText = searchBTableInput.value;
         this.pageCurrent = 0; //сбрасываем текущую страницу ленивой загрузки
         //let findItems = 0;
-        if (searchBTableInput.value.length > 0) {
+        if (sText.length > 0) {
             this.itsSearchProcess = true;
             this.clearTable(); //очистка таблицы перед поиском
             this.searchResultData = [];
@@ -358,17 +535,18 @@ class BsTable {
             //findItems = 0;
             this.searchResultData = [];
             //clearTable(); //очистка таблицы перед поиском
-            this.addFirstRows();
+            this.#addFirstRows();
         }
     }
 
-    itsSortReverse = false; //Отслеживает изменение порядка сортировки
+    #itsSortReverse = false; //Отслеживает изменение порядка сортировки
     /**
      * Сортировка данных по названию ключа
      * @param {*} keyName - название ключа
      */
     sortData(keyName) {
         let sortDataArray = [];
+        this.#actionRowHide();
         //Если производится поиск записей и есть результаты поиска, то сортируем только их
         if (this.searchResultData.length > 0 && this.itsSearchProcess) {
             sortDataArray = this.searchResultData;
@@ -387,10 +565,10 @@ class BsTable {
             }
             return 0;
         });
-        if (this.itsSortReverse) {
+        if (this.#itsSortReverse) {
             sortDataArray = sortDataArray.reverse();
         }
-        this.itsSortReverse = !this.itsSortReverse;
+        this.#itsSortReverse = !this.#itsSortReverse;
 
         //Если происходит сортировка результатов поиска, то отображаем все результаты поиска
         //Иначе отображаем только необходимое количество записей, остальное показываем при пролистывании
@@ -401,12 +579,12 @@ class BsTable {
                 this.insertRow(this.searchResultData[i]);
             }
         } else {
-            this.addFirstRows();
+            this.#addFirstRows();
         }
     }
 
     /**
-     * Удаляет все строки с тела таблицы
+     * Удаляет все строки с тела таблицы, но не удаляет объекты из массива data
      */
     clearTable() {
         let count = this.table.rows.length;
@@ -414,6 +592,5 @@ class BsTable {
             this.table.deleteRow(i);
         }
     }
-
 }
 
