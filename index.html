@@ -50,9 +50,54 @@
             b = !b;
         }
 
+        let options = {
+            itemsToPage: 50,
+            hiddenColumns: ["phone"],
+            tableHeight: "500px",
+            fixedHeaderTable: true,
+            renameColumn: [
+                {
+                    key: "id",
+                    replace: "ИД"
+                },
+                {
+                    key: "verify",
+                    replace: "Проверен"
+                },
+                {
+                    key: "name",
+                    replace: "Имя"
+                },
+                {
+                    key: "email",
+                    replace: "Email"
+                }
+            ],
+            replace: [
+                {
+                    value: "true",
+                    key: "verify",
+                    replace: `<span class="badge text-bg-success">да</span>`
+                },
+                {
+                    value: "false",
+                    key: "verify",
+                    replace: `<span class="badge text-bg-warning">нет</span>`
+                },
+                {
+                    value: "{value}",
+                    key: "name",
+                    replace: `<a href="{value}" target="_blank">{value}</a>`
+                }
+            ],
+            actions: [
+                `<a class="btn btn-sm btn-primary" href="/api/edite/{id}">Редактировать</a>`,
+                `<a class="btn btn-sm btn-danger" href="javascript:remove('{name}')">Удалить</a>`
+            ]
+        };
 
 
-        const btable = new BsTable('btable', dataJ);
+        const btable = new BsTable('btable', dataJ, options);
 
     </script>
 </body>

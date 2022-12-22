@@ -1,56 +1,13 @@
 
-/**
- * Настройки по умолчанию. Применяются, если не были указан options
- */
-let optionsDefault = {
-    itemsToPage: 50,
-    hiddenColumns: ["phone"],
-    tableHeight: "500px",
-    fixedHeaderTable: true,
-    renameColumn: [
-        {
-            key: "id",
-            replace: "ИД"
-        },
-        {
-            key: "verify",
-            replace: "Проверен"
-        },
-        {
-            key: "name",
-            replace: "Имя"
-        },
-        {
-            key: "email",
-            replace: "Email"
-        }
-    ],
-    replace: [
-        {
-            value: "true",
-            key: "verify",
-            replace: `<span class="badge text-bg-success">да</span>`
-        },
-        {
-            value: "false",
-            key: "verify",
-            replace: `<span class="badge text-bg-warning">нет</span>`
-        },
-        {
-            value: "{value}",
-            key: "name",
-            replace: `<a href="{value}" target="_blank">{value}</a>`
-        }
-    ],
-    actions: [
-        `<a class="btn btn-sm btn-primary" href="/api/edite/{id}">Редактировать</a>`,
-        `<a class="btn btn-sm btn-danger" href="javascript:remove('{name}')">Удалить</a>`
-    ]
-};
-
 class BsTable {
     //Settings
-    options; //Основные настройки приложения переданные при создании таблицы в конструктор
+    //Основные настройки приложения переданные при создании таблицы в конструктор
+    options = {
+        itemsToPage: 50,
+        hiddenColumns: ["phone"],
+        tableHeight: "500px",
+        fixedHeaderTable: true
+    }; 
 
     //Elements
     container; //Контейнер для всех элементов управления и таблицы
@@ -78,13 +35,13 @@ class BsTable {
      * 
      * @param {string} idTable - идентификатор таблицы
      * @param {Array} datat - массив данных таблицы
-     * @param {object} options - настройки таблицы (не обязательный параметр)
+     * @param {object} _options - настройки таблицы (не обязательный параметр)
      */
-    constructor(idTable, datat, options = optionsDefault) {
+    constructor(idTable, datat, _options = options) {
         //try {
         this.table = document.getElementById(idTable);
         this.data = datat;
-        this.options = options;
+        this.options = _options;
         this.#calculatePages();
         let pnode = this.table.parentNode; //Контейнер, в который была помещена таблица
 
