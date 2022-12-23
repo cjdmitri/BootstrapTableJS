@@ -48,6 +48,7 @@ class BsTable {
 
         //Создаём новый контейнер для элементов и таблицы
         this.container = document.createElement('div');
+        this.container.classList.add('position-relative');
 
         //Оборачиваем таблицу в контейнер
         this.contTable = document.createElement('div');
@@ -359,6 +360,8 @@ class BsTable {
         this.thead = this.table.createTHead();
         if (this.options.fixedHeaderTable === true) {
             this.thead.classList.add("sticky-top", "bg-white", "shadow");
+        }else{
+            this.thead.classList.add("bg-white", "shadow");
         }
 
         let row = this.thead.insertRow();
@@ -458,8 +461,16 @@ class BsTable {
         leftHeader.appendChild(sInput);
         div.appendChild(leftHeader);
 
+        let rightHeader = document.createElement('div');
+        rightHeader.classList.add('col-6', 'd-flex', 'justify-content-end');
+        rightHeader.innerHTML+='<button class="btn btn-outline-primary border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#bstablesettingspanel"><i class="bi bi-gear"></i></button>';
+
+        
+        div.appendChild(rightHeader);
+
         return div;
     }
+
 
     /**
      * Нижний контейнер с элементами управления
@@ -519,17 +530,20 @@ class ActionsRow {
     constructor(container, options) {
         this.#options = options;
         this.#actionRow = document.createElement('div');
-        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between');
-        this.#actionRow.style.width = "100%";
+        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between', 'align-items-center');
+        //this.#actionRow.style.width = "100%";
         this.#actionRow.style.zIndex = "1000";
         this.#actionRow.style.left = "0px";
         this.#actionRow.style.top = "0px";
+        this.#actionRow.style.border="1px solid #c7c7ff";
+        this.#actionRow.style.borderRadius="5px";
+
         this.#actionRow.style.transition = "all 0.2s ease 0s";
         this.#actionRow.hidden = true;
 
         //Actions
         this.#actionRowButtonsGroup = document.createElement('div');
-        this.#actionRowButtonsGroup.classList.add('btn-group');
+        this.#actionRowButtonsGroup.classList.add('btn-group', 'me-5');
         //btnGroup.innerHTML = '<button type="button" class="btn btn-sm btn-primary">Primary</button>';
         this.#actionRow.append(this.#actionRowButtonsGroup);
 
