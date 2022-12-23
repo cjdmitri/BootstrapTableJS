@@ -7,7 +7,7 @@ class BsTable {
         hiddenColumns: ["phone"],
         tableHeight: "500px",
         fixedHeaderTable: true
-    }; 
+    };
 
     //Elements
     container; //Контейнер для всех элементов управления и таблицы
@@ -17,10 +17,10 @@ class BsTable {
     noDataMsg; //Сообщение об отсутствии данных для отображения
     contTable; //Контейнер для таблицы
 
+    #actionRow; //Строка действий для строки данных таблицы
+
     //Данные
     data; //Массив объектов данных полученных при создании таблицы в конструктор
-    //activeItemData; //Выбранный элемент
-    //dataCount;
     pagesTotal = 0; //Количество страниц для загрузки при скроле страницы
     pageCurrent = 0; //текущая страница
     rowsToPage = 50; //Количество элементов на страницу, переопределяется через options
@@ -29,6 +29,7 @@ class BsTable {
     //Состояние
     itsSearchProcess = false; //В данный момент идет процесс поиска
     needScroll = false;
+
 
 
     /**
@@ -58,11 +59,17 @@ class BsTable {
         this.contTable.append(this.table);
 
         //Создаём элемент для отслеживания окончания таблицы при пролистывании
-        this.endBtable = document.createElement('span');
+        this.endBtable = document.createElement('div');
         this.endBtable.id = 'endBtable';
 
         this.contTable.append(this.table);
         this.contTable.append(this.endBtable);
+
+        this.noDataMsg = document.createElement('div');
+        this.noDataMsg.classList.add('text-center', 'p-2', 'text-muted');
+        this.noDataMsg.hidden = true;
+        this.noDataMsg.innerHTML = 'Нет данных для отображения';
+        this.contTable.append(this.noDataMsg);
 
         this.container.append(this.#createHeaderTable());
         this.container.append(this.contTable);
@@ -73,10 +80,11 @@ class BsTable {
         this.#createTBoby();
         this.#addFirstRows();
         this.#watchNeedAppend();
-        if(this.options.actions != undefined){
-            this.#actionRowCreate();
+        if (this.options.actions != undefined) {
+            //this.#actionRowCreate();
+            this.#actionRow = new ActionsRow(this.contTable, this.options);
         }
-        
+
 
         //window.addEventListener('scroll', event => {this.#tableScroll();}, false); 
 
@@ -111,10 +119,12 @@ class BsTable {
 
     set activeItemData(value) {
         this.#activeItemData = value;
-
-        //this.#label.innerHTML=value.id;
-        //console.log(value);
     }
+
+    /**
+     * Активная строка таблицы
+     */
+    #activeItemRow;
 
 
     /**
@@ -126,14 +136,6 @@ class BsTable {
             for (let i = 0; i < this.rowsToPage; i++) {
                 this.insertRow(this.data[i]);
             }
-
-            /* //Если окончание таблицы находится в поле видимости экрана
-            //и если нет полосы прокрутки,
-            //то подгружаем данные до сокрытия окончания таблицы
-            while(this.#needMoreLoadData()){
-                this.#tableScroll();
-            } */
-
         } else {
             for (let i = 0; i < this.data.length; i++) {
                 this.insertRow(data[i]);
@@ -170,78 +172,29 @@ class BsTable {
      */
     #rowClicked(dataItem, row) {
         this.activeItemData = dataItem;
-        if(this.options.actions != undefined){
-            this.#actionRow.hidden = false;
-            this.#actionRow.style.top = row.offsetTop + 'px';
-            this.#actionRow.classList.remove('d-none');
-    
-            this.#actionRowButtonsGroup.innerHTML = null;
-            if (this.options.actions != undefined) {
-                for (let i = 0; i < this.options.actions.length; i++) {
-                    let actionItem = this.options.actions[i];
-                    for (let key in dataItem) {
-                        let keyRepl = `{${key}}`;
-                        actionItem = actionItem.replaceAll(keyRepl, dataItem[key]);
-                    }
-                    this.#actionRowButtonsGroup.innerHTML += actionItem;
-                }
-            }
-        }
+        this.#activeItemRow = row;
+        this.#actionRow.show(dataItem, row);
+
     }
-
-
 
     #rowMouseenter(dataItem, row) { }
 
     #rowMouseleave(dataItem, row) { }
 
-    /** 
-     * Визуальная строка управления отдельной записью в таблице
-     */
-    #actionRow;
-    #actionRowButtonsGroup;
     /**
-     * Создание строки управления записью
+     * Удаляет активную строку из таблицы и объект из массива
      */
-    #actionRowCreate() {
-        this.#actionRow = document.createElement('div');
-        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between');
-        this.#actionRow.style.width = "100%";
-        this.#actionRow.style.zIndex = "1000";
-        this.#actionRow.style.left = "0px";
-        this.#actionRow.style.top = "0px";
-        this.#actionRow.style.transition = "all 0.2s ease 0s";
-        this.#actionRow.hidden = true;
+    removeActiveItem(){
+        let index = this.data.indexOf(this.activeItemData);
+        let rItem = this.data.splice(index, 1);
+        this.#activeItemRow.remove();
 
-        //Actions
-        this.#actionRowButtonsGroup = document.createElement('div');
-        this.#actionRowButtonsGroup.classList.add('btn-group');
-        //btnGroup.innerHTML = '<button type="button" class="btn btn-sm btn-primary">Primary</button>';
-        this.#actionRow.append(this.#actionRowButtonsGroup);
-
-        //hidden button
-        let hiddenBtn = document.createElement('button');
-        hiddenBtn.type = 'button';
-        hiddenBtn.classList.add('btn-close');
-        this.#actionRow.append(hiddenBtn);
-        hiddenBtn.addEventListener('click', event => {
-            this.#actionRowHide();
-        }, false);
-
-        //this.#label= document.createElement('p');
-        //this.#actionRow.append(this.#label);
-
-        this.contTable.append(this.#actionRow);
-    }
-
-    /**
-     * Скрыть строку управления записью
-     */
-    #actionRowHide() {
-        if(this.options.actions != undefined && this.#actionRow != null){
-            this.#actionRow.hidden = true;
-            this.#actionRow.classList.add('d-none');
-        }
+        //Обновляем ихформацию об активных элементах
+        this.activeItemData = null;
+        this.#activeItemRow = null;
+        this.#actionRow.hide();
+        console.log('Item deleted');
+        console.log('Items count: ' + this.data.length);
     }
 
     /**
@@ -411,11 +364,8 @@ class BsTable {
      */
     #craeteFooterTable() {
         let div = document.createElement('div');
-        this.noDataMsg = document.createElement('div');
-        this.noDataMsg.classList.add('text-center', 'p-2', 'text-muted');
-        this.noDataMsg.hidden = true;
-        this.noDataMsg.innerHTML = 'Нет данных для отображения';
-        div.appendChild(this.noDataMsg);
+        
+        //div.appendChild(this.noDataMsg);
         return div;
     }
 
@@ -454,7 +404,7 @@ class BsTable {
      * @param {*} sText - текст для поиска совпадений
      */
     search(sText) {
-        this.#actionRowHide();
+        this.#actionRow.hide();
         //let searchBTableInput = document.getElementById('searchBTableInput');
         console.log(searchBTableInput.value);
         this.noDataMsg.hidden = true;
@@ -503,7 +453,7 @@ class BsTable {
      */
     sortData(keyName) {
         let sortDataArray = [];
-        this.#actionRowHide();
+        this.#actionRow.hide();
         //Если производится поиск записей и есть результаты поиска, то сортируем только их
         if (this.searchResultData.length > 0 && this.itsSearchProcess) {
             sortDataArray = this.searchResultData;
@@ -551,3 +501,76 @@ class BsTable {
     }
 }
 
+/**
+ * Строка действий и дополнительной информации для текущей записи таблицы
+ */
+class ActionsRow {
+
+    #actionRow;
+    #actionRowButtonsGroup;
+    #options;
+
+    constructor(container, options) {
+        this.#options = options;
+        this.#actionRow = document.createElement('div');
+        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between');
+        this.#actionRow.style.width = "100%";
+        this.#actionRow.style.zIndex = "1000";
+        this.#actionRow.style.left = "0px";
+        this.#actionRow.style.top = "0px";
+        this.#actionRow.style.transition = "all 0.2s ease 0s";
+        this.#actionRow.hidden = true;
+
+        //Actions
+        this.#actionRowButtonsGroup = document.createElement('div');
+        this.#actionRowButtonsGroup.classList.add('btn-group');
+        //btnGroup.innerHTML = '<button type="button" class="btn btn-sm btn-primary">Primary</button>';
+        this.#actionRow.append(this.#actionRowButtonsGroup);
+
+        //hidden button
+        let hiddenBtn = document.createElement('button');
+        hiddenBtn.type = 'button';
+        hiddenBtn.classList.add('btn-close');
+        this.#actionRow.append(hiddenBtn);
+        hiddenBtn.addEventListener('click', event => {
+            this.hide();
+        }, false);
+
+        container.append(this.#actionRow);
+    }
+
+    /**
+     * Показать строку
+     * @param {object} dataItem - объект данных
+     * @param {object} row - для какой строки показать
+     */
+    show(dataItem, row) {
+        if (this.#options.actions != undefined) {
+            this.#actionRow.hidden = false;
+            this.#actionRow.style.top = row.offsetTop + 'px';
+            this.#actionRow.classList.remove('d-none');
+
+            this.#actionRowButtonsGroup.innerHTML = null;
+            if (this.#options.actions != undefined) {
+                for (let i = 0; i < this.#options.actions.length; i++) {
+                    let actionItem = this.#options.actions[i];
+                    for (let key in dataItem) {
+                        let keyRepl = `{${key}}`;
+                        actionItem = actionItem.replaceAll(keyRepl, dataItem[key]);
+                    }
+                    this.#actionRowButtonsGroup.innerHTML += actionItem;
+                }
+            }
+        }
+    }
+
+    /**
+     * Скрывает строку
+     */
+    hide() {
+        if (this.#options.actions != undefined && this.#actionRow != null) {
+            this.#actionRow.hidden = true;
+            this.#actionRow.classList.add('d-none');
+        }
+    }
+}
