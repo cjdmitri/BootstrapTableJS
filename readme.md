@@ -8,10 +8,10 @@
     <li>Сортировка данных;</li>
     <li>Закрепление строки заголовков;</li>
     <li>Возможность замены строк данных по шаблону, указанному в настройках;</li>
-    <li>Гибкая настрйка действий с элементами данных</li>
+    <li>Гибкая настройка действий с элементами данных</li>
 </ul>
 <h4>Быстрый старт</h4>
-<p>Создайте таблицу в файле <code>.html</code> и пропишите идентификатор <code><table class="table" id="btable"></table></code></p>
+<p>Создайте таблицу <code>table</code> в файле <code>.html</code> и пропишите идентификатор <code>id="btable"</code></p>
 <p>Подключите скрипт: <code><script src="js/bootstrapTable.js"></script></code></p>
 <p>Создайте таблицу данных в файле <code>.js</code><code>const btable = new BsTable('btable', data, options);</code></p>
 <ul>
