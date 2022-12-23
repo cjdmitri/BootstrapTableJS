@@ -94,23 +94,12 @@ class BsTable {
         //}
     }
 
-    /**
-     * Отслеживает позицию конца таблицы и при необходимости подгружает данные
-     */
-    #watchNeedAppend() {
-        setInterval(() => {
-            if (!this.itsSearchProcess && this.data.length > this.rowsToPage) {
-                if (this.pageCurrent < this.pagesTotal && this.#needMoreLoadData()) {
-                    //console.log("watchNeedAppend");
-                    this.#tableScroll();
-                }
-            }
-        }, 500);
-    }
+
+    //#region Public
 
     /**
-     * Для активного элемента данных создаём get, set. Для отсеживания изменений
-     */
+   * Для активного элемента данных создаём get, set. Для отсеживания изменений
+   */
     #activeItemData;
 
     get activeItemData() {
@@ -121,33 +110,11 @@ class BsTable {
         this.#activeItemData = value;
     }
 
-    /**
-     * Активная строка таблицы
-     */
-    #activeItemRow;
-
 
     /**
-     * Отображение начальных строк в таблице, при инициализации и после очистки поля для поиска
-     */
-    #addFirstRows() {
-        this.clearTable();
-        if (this.data.length > this.rowsToPage) {
-            for (let i = 0; i < this.rowsToPage; i++) {
-                this.insertRow(this.data[i]);
-            }
-        } else {
-            for (let i = 0; i < this.data.length; i++) {
-                this.insertRow(data[i]);
-            }
-        }
-    }
-
-
-    /**
-     * Добавляет строку в таблицу
-     * @param {object} dataItem - объект массива data
-     */
+    * Добавляет строку в таблицу
+    * @param {object} dataItem - объект массива data
+    */
     insertRow(dataItem) {
         let row = this.tbody.insertRow();
         for (let key in dataItem) {
@@ -166,25 +133,9 @@ class BsTable {
     }
 
     /**
-     * Действия при клике по строке таблицы
-     * @param {object} dataItem - объект массива data
-     * @param {object} row - строка таблицы
-     */
-    #rowClicked(dataItem, row) {
-        this.activeItemData = dataItem;
-        this.#activeItemRow = row;
-        this.#actionRow.show(dataItem, row);
-
-    }
-
-    #rowMouseenter(dataItem, row) { }
-
-    #rowMouseleave(dataItem, row) { }
-
-    /**
-     * Удаляет активную строку из таблицы и объект из массива
-     */
-    removeActiveItem(){
+    * Удаляет активную строку из таблицы и объект из массива
+    */
+    removeActiveItem() {
         let index = this.data.indexOf(this.activeItemData);
         let rItem = this.data.splice(index, 1);
         this.#activeItemRow.remove();
@@ -195,208 +146,6 @@ class BsTable {
         this.#actionRow.hide();
         console.log('Item deleted');
         console.log('Items count: ' + this.data.length);
-    }
-
-    /**
-     * Получаем количество страниц ленивой загрузки
-     */
-    #calculatePages() {
-        if (this.options.itemsToPage != undefined) {
-            this.rowsToPage = parseInt(this.options.itemsToPage);
-        }
-        this.data.length = this.data.length;
-        this.pagesTotal = Math.round(this.data.length / this.rowsToPage);
-        let p = this.data.length % this.rowsToPage;
-        if (p > 0) {
-            this.pagesTotal++;
-        }
-        console.log('Total pages: ' + this.pagesTotal);
-        console.log('Items count: ' + this.data.length);
-    }
-
-    /**
-     * Замена строки данных строкой из options.replace
-     * @param {*} value - данные, которые следует заменить
-     * @param {*} dataItem - объект, данные которого следует заменит
-     * @param {*} key - в каком поле данных следует произвести замену
-     * @returns 
-     */
-    #replaceData(value, dataItem, key) {
-        let newValue = value;
-        if (this.options.replace != undefined) {
-            for (let i = 0; i < this.options.replace.length; i++) {
-                //Если необходимо заменить любое значение свойства
-                if (this.options.replace[i].value === '{value}') {
-                    //for(let k in dataItem){
-                    if (key === this.options.replace[i].key) {
-                        //console.log("{value} find. value: " + dataItem[key]);
-                        let value = dataItem[key];
-                        newValue = this.options.replace[i].replace.replaceAll('{value}', value);
-                        //console.log(newValue);
-                    }
-                    //}
-
-                } else if (this.options.replace[i].value.indexOf(value) > -1 && this.options.replace[i].key.indexOf(key) > -1) {
-                    //Если необходимо заменить только точное совпадение с указанным
-                    newValue = this.options.replace[i].replace;
-                }
-            }
-        }
-        return newValue;
-    }
-
-    /**
-     * Создание строки заголовка таблицы
-     */
-    #createTHeadRow() {
-        //let thead = this.table.querySelector('thead');
-        //if (thead === null) {
-        this.thead = this.table.createTHead();
-        if (this.options.fixedHeaderTable === true) {
-            this.thead.classList.add("sticky-top", "bg-white", "shadow");
-        }
-
-        let row = this.thead.insertRow();
-
-        for (let key in this.data[0]) {
-            //Проверяем, следует ли исключить определённые поля
-            if (this.options.hiddenColumns != undefined) {
-                if (this.options.hiddenColumns.indexOf(key.toString()) > -1) {
-                    continue;
-                }
-            }
-            if (this.options.renameColumn != undefined) {
-                let matched = false;
-                for (let i = 0; i < this.options.renameColumn.length; i++) {
-                    if (this.options.renameColumn[i].key.indexOf(key) > -1) {
-                        let newValue = this.options.renameColumn[i].replace;
-                        row.appendChild(this.#addHeaderTableCell(key, newValue));
-                        //newValue = this.options.renameColumn[i].replace;
-                        matched = true;
-                        break;
-                    }
-                }
-                if (!matched) {
-                    row.appendChild(this.#addHeaderTableCell(key, key));
-                }
-            } else {
-                row.appendChild(this.#addHeaderTableCell(key, key));
-            }
-        }
-        //}
-    }
-
-    /**
-     * Создаёт тело таблицы (tbody) при его отсутствии
-     */
-    #createTBoby() {
-        this.tbody = this.table.querySelector('tbody');
-        //console.log(tbody);
-        if (this.tbody === null || this.tbody === undefined) {
-            this.tbody = document.createElement('tbody');
-            this.table.appendChild(this.tbody);
-        }
-    }
-
-
-
-    /**
-     * Создаёт ячейку для заголовка таблицы
-     * @param {*} key - ключ объекта
-     * @param {*} title - отображаемый заголовок
-     * @returns - ячейка строки заголовка таблицы <th>
-     */
-    #addHeaderTableCell(key, title) {
-        let cell = document.createElement('th');
-        let spanCont = document.createElement('span');
-        spanCont.classList.add('d-flex', 'justify-content-between', 'align-items-center');
-
-        let spanTitle = document.createElement('span');
-        spanTitle.classList.add('me-2');
-        spanTitle.innerHTML = `${title}`;
-
-        let btnSort = document.createElement('button');
-        btnSort.classList.add('btn', 'btn-outline-primary', 'border-0');
-        btnSort.addEventListener('click', event => {
-            this.sortData(`${key}`);
-            console.log(`Sort by: ${key}`);
-        }, false);
-        btnSort.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-up" viewBox="0 0 16 16">
-        <path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z"/>
-        </svg>`;
-
-        spanCont.appendChild(spanTitle);
-        spanCont.appendChild(btnSort);
-        cell.appendChild(spanCont);
-
-        return cell;
-    }
-
-    /**
-     * Верхний контейнер с элементами управления и строкой поиска
-     * @returns 
-     */
-    #createHeaderTable() {
-        let div = document.createElement('div');
-        div.classList.add('row');
-
-        let leftHeader = document.createElement('div');
-        leftHeader.classList.add('col-6');
-
-        let sInput = document.createElement('input');
-        sInput.classList.add('form-control');
-        sInput.setAttribute('type', 'search');
-        sInput.setAttribute('placeholder', 'Найти');
-        sInput.setAttribute('id', 'searchBTableInput');
-        sInput.addEventListener('input', event => {
-            this.search(sInput.value);
-        }, false);
-
-        leftHeader.appendChild(sInput);
-        div.appendChild(leftHeader);
-
-        return div;
-    }
-
-    /**
-     * Нижний контейнер с элементами управления
-     * @returns 
-     */
-    #craeteFooterTable() {
-        let div = document.createElement('div');
-        
-        //div.appendChild(this.noDataMsg);
-        return div;
-    }
-
-    /**
-     * Если окончание таблицы в поле видимости экрана, то true
-     * @returns 
-     */
-    #needMoreLoadData() {
-        const windowHeight = window.innerHeight;
-        const boundingRect = this.endBtable.getBoundingClientRect();
-        const yPosition = boundingRect.top - windowHeight;
-        if (yPosition < 500) {
-            return true;
-        }
-        return false;
-    }
-
-
-    /**
-     * Действия при скроле страницы
-     */
-    #tableScroll() {
-        //Если в данный момент не происходит поиска записей
-        if (!this.itsSearchProcess && this.#needMoreLoadData()) {
-            if (this.pageCurrent < this.pagesTotal) {
-                this.pageCurrent++;
-                for (let i = this.pageCurrent * this.rowsToPage; i < this.rowsToPage * (this.pageCurrent + 1); i++) {
-                    this.insertRow(this.data[i]);
-                }
-            }
-        }
     }
 
     /**
@@ -499,6 +248,263 @@ class BsTable {
             this.table.deleteRow(i);
         }
     }
+
+    //#endregion
+
+    /**
+     * Отслеживает позицию конца таблицы и при необходимости подгружает данные
+     */
+    #watchNeedAppend() {
+        setInterval(() => {
+            if (!this.itsSearchProcess && this.data.length > this.rowsToPage) {
+                if (this.pageCurrent < this.pagesTotal && this.#needMoreLoadData()) {
+                    //console.log("watchNeedAppend");
+                    this.#tableScroll();
+                }
+            }
+        }, 500);
+    }
+
+    /**
+     * Активная строка таблицы
+     */
+    #activeItemRow;
+
+    /**
+     * Отображение начальных строк в таблице, при инициализации и после очистки поля для поиска
+     */
+    #addFirstRows() {
+        this.clearTable();
+        if (this.data.length > this.rowsToPage) {
+            for (let i = 0; i < this.rowsToPage; i++) {
+                this.insertRow(this.data[i]);
+            }
+        } else {
+            for (let i = 0; i < this.data.length; i++) {
+                this.insertRow(data[i]);
+            }
+        }
+    }
+
+    /**
+     * Действия при клике по строке таблицы
+     * @param {object} dataItem - объект массива data
+     * @param {object} row - строка таблицы
+     */
+    #rowClicked(dataItem, row) {
+        this.activeItemData = dataItem;
+        this.#activeItemRow = row;
+        this.#actionRow.show(dataItem, row);
+
+    }
+
+    #rowMouseenter(dataItem, row) { }
+
+    #rowMouseleave(dataItem, row) { }
+
+    /**
+     * Получаем количество страниц ленивой загрузки
+     */
+    #calculatePages() {
+        if (this.options.itemsToPage != undefined) {
+            this.rowsToPage = parseInt(this.options.itemsToPage);
+        }
+        this.data.length = this.data.length;
+        this.pagesTotal = Math.round(this.data.length / this.rowsToPage);
+        let p = this.data.length % this.rowsToPage;
+        if (p > 0) {
+            this.pagesTotal++;
+        }
+        console.log('Total pages: ' + this.pagesTotal);
+        console.log('Items count: ' + this.data.length);
+    }
+
+    /**
+     * Замена строки данных строкой из options.replace
+     * @param {*} value - данные, которые следует заменить
+     * @param {*} dataItem - объект, данные которого следует заменит
+     * @param {*} key - в каком поле данных следует произвести замену
+     * @returns 
+     */
+    #replaceData(value, dataItem, key) {
+        let newValue = value;
+        if (this.options.replace != undefined) {
+            for (let i = 0; i < this.options.replace.length; i++) {
+                //Если необходимо заменить любое значение свойства
+                if (this.options.replace[i].value === '{value}') {
+                    //for(let k in dataItem){
+                    if (key === this.options.replace[i].key) {
+                        //console.log("{value} find. value: " + dataItem[key]);
+                        let value = dataItem[key];
+                        newValue = this.options.replace[i].replace.replaceAll('{value}', value);
+                        //console.log(newValue);
+                    }
+                    //}
+
+                } else if (this.options.replace[i].value.indexOf(value) > -1 && this.options.replace[i].key.indexOf(key) > -1) {
+                    //Если необходимо заменить только точное совпадение с указанным
+                    newValue = this.options.replace[i].replace;
+                }
+            }
+        }
+        return newValue;
+    }
+
+    /**
+     * Создание строки заголовка таблицы
+     */
+    #createTHeadRow() {
+        //let thead = this.table.querySelector('thead');
+        //if (thead === null) {
+        this.thead = this.table.createTHead();
+        if (this.options.fixedHeaderTable === true) {
+            this.thead.classList.add("sticky-top", "bg-white", "shadow");
+        }
+
+        let row = this.thead.insertRow();
+
+        for (let key in this.data[0]) {
+            //Проверяем, следует ли исключить определённые поля
+            if (this.options.hiddenColumns != undefined) {
+                if (this.options.hiddenColumns.indexOf(key.toString()) > -1) {
+                    continue;
+                }
+            }
+            if (this.options.renameColumn != undefined) {
+                let matched = false;
+                for (let i = 0; i < this.options.renameColumn.length; i++) {
+                    if (this.options.renameColumn[i].key.indexOf(key) > -1) {
+                        let newValue = this.options.renameColumn[i].replace;
+                        row.appendChild(this.#addHeaderTableCell(key, newValue));
+                        //newValue = this.options.renameColumn[i].replace;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    row.appendChild(this.#addHeaderTableCell(key, key));
+                }
+            } else {
+                row.appendChild(this.#addHeaderTableCell(key, key));
+            }
+        }
+        //}
+    }
+
+    /**
+     * Создаёт тело таблицы (tbody) при его отсутствии
+     */
+    #createTBoby() {
+        this.tbody = this.table.querySelector('tbody');
+        //console.log(tbody);
+        if (this.tbody === null || this.tbody === undefined) {
+            this.tbody = document.createElement('tbody');
+            this.table.appendChild(this.tbody);
+        }
+    }
+
+    /**
+     * Создаёт ячейку для заголовка таблицы
+     * @param {*} key - ключ объекта
+     * @param {*} title - отображаемый заголовок
+     * @returns - ячейка строки заголовка таблицы <th>
+     */
+    #addHeaderTableCell(key, title) {
+        let cell = document.createElement('th');
+        let spanCont = document.createElement('span');
+        spanCont.classList.add('d-flex', 'justify-content-between', 'align-items-center');
+
+        let spanTitle = document.createElement('span');
+        spanTitle.classList.add('me-2');
+        spanTitle.innerHTML = `${title}`;
+
+        let btnSort = document.createElement('button');
+        btnSort.classList.add('btn', 'btn-outline-primary', 'border-0');
+        btnSort.addEventListener('click', event => {
+            this.sortData(`${key}`);
+            console.log(`Sort by: ${key}`);
+        }, false);
+        btnSort.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-up" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z"/>
+        </svg>`;
+
+        spanCont.appendChild(spanTitle);
+        spanCont.appendChild(btnSort);
+        cell.appendChild(spanCont);
+
+        return cell;
+    }
+
+    /**
+     * Верхний контейнер с элементами управления и строкой поиска
+     * @returns 
+     */
+    #createHeaderTable() {
+        let div = document.createElement('div');
+        div.classList.add('row');
+
+        let leftHeader = document.createElement('div');
+        leftHeader.classList.add('col-6');
+
+        let sInput = document.createElement('input');
+        sInput.classList.add('form-control');
+        sInput.setAttribute('type', 'search');
+        sInput.setAttribute('placeholder', 'Найти');
+        sInput.setAttribute('id', 'searchBTableInput');
+        sInput.addEventListener('input', event => {
+            this.search(sInput.value);
+        }, false);
+
+        leftHeader.appendChild(sInput);
+        div.appendChild(leftHeader);
+
+        return div;
+    }
+
+    /**
+     * Нижний контейнер с элементами управления
+     * @returns 
+     */
+    #craeteFooterTable() {
+        let div = document.createElement('div');
+
+        //div.appendChild(this.noDataMsg);
+        return div;
+    }
+
+    /**
+     * Если окончание таблицы в поле видимости экрана, то true
+     * @returns 
+     */
+    #needMoreLoadData() {
+        const windowHeight = window.innerHeight;
+        const boundingRect = this.endBtable.getBoundingClientRect();
+        const yPosition = boundingRect.top - windowHeight;
+        if (yPosition < 500) {
+            return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * Действия при скроле страницы
+     */
+    #tableScroll() {
+        //Если в данный момент не происходит поиска записей
+        if (!this.itsSearchProcess && this.#needMoreLoadData()) {
+            if (this.pageCurrent < this.pagesTotal) {
+                this.pageCurrent++;
+                for (let i = this.pageCurrent * this.rowsToPage; i < this.rowsToPage * (this.pageCurrent + 1); i++) {
+                    this.insertRow(this.data[i]);
+                }
+            }
+        }
+    }
+
+
+
+
 }
 
 /**
