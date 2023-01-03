@@ -16,6 +16,7 @@ class BsTable {
     endBtable; //Элемент для определения конца таблицы и необходимости отображения новых данных
     noDataMsg; //Сообщение об отсутствии данных для отображения
     contTable; //Контейнер для таблицы
+    footer;
 
     #actionRow; //Строка действий для строки данных таблицы
 
@@ -33,17 +34,21 @@ class BsTable {
 
 
 
+
     /**
      * 
      * @param {string} idTable - идентификатор таблицы
      * @param {Array} datat - массив данных таблицы
      * @param {object} _options - настройки таблицы (не обязательный параметр)
      */
-    constructor(idTable, datat, _options = options) {
+    constructor(idTable, datat, _options = null) {
         //try {
         this.table = document.getElementById(idTable);
         this.data = datat;
-        this.options = _options;
+        this.footer = new Footer(this);
+        if (_options != null) {
+            this.options = _options;
+        }
         this.#calculatePages();
         let pnode = this.table.parentNode; //Контейнер, в который была помещена таблица
 
@@ -67,16 +72,12 @@ class BsTable {
         this.contTable.append(this.table);
         this.contTable.append(this.endBtable);
 
-        this.noDataMsg = document.createElement('div');
-        this.noDataMsg.classList.add('text-center', 'p-2', 'text-muted');
-        this.noDataMsg.hidden = true;
-        this.noDataMsg.innerHTML = 'Нет данных для отображения';
-        this.contTable.append(this.noDataMsg);
+
+        this.contTable.append(this.#createNoDataMessage());
 
         this.container.append(this.#createHeaderTable());
         this.container.append(this.contTable);
-        this.container.append(this.#craeteFooterTable());
-        //this.container.innerHTML+=this.#settingsPanel();
+        this.container.append(this.footer.create());
         pnode.append(this.container);
 
         this.#createTHeadRow();
@@ -87,7 +88,7 @@ class BsTable {
             //this.#actionRowCreate();
             this.#actionRow = new ActionsRow(this.contTable, this.options);
         }
-        this.settingsModal = new SettingsModal(this.container, this.options);
+        //this.settingsModal = new SettingsModal(this.container, this.options);
 
         //window.addEventListener('scroll', event => {this.#tableScroll();}, false); 
 
@@ -97,6 +98,13 @@ class BsTable {
         //}
     }
 
+    #createNoDataMessage() {
+        this.noDataMsg = document.createElement('div');
+        this.noDataMsg.classList.add('text-center', 'p-2', 'text-muted');
+        this.noDataMsg.hidden = true;
+        this.noDataMsg.innerHTML = 'Нет данных для отображения';
+        return this.noDataMsg;
+    }
 
     //#region Public
 
@@ -206,6 +214,7 @@ class BsTable {
     sortData(keyName) {
         let sortDataArray = [];
         this.#actionRow.hide();
+        this.contTable.scrollTop = 0;
         //Если производится поиск записей и есть результаты поиска, то сортируем только их
         if (this.searchResultData.length > 0 && this.itsSearchProcess) {
             sortDataArray = this.searchResultData;
@@ -278,9 +287,9 @@ class BsTable {
      */
     #addFirstRows() {
         this.clearTable();
-        if (this.data.length===0){
+        if (this.data.length === 0) {
             this.noDataMsg.hidden = false;
-        }else{
+        } else {
             this.noDataMsg.hidden = true;
         }
         if (this.data.length > this.rowsToPage) {
@@ -470,36 +479,36 @@ class BsTable {
 
         let rightHeader = document.createElement('div');
         rightHeader.classList.add('col-6', 'd-flex', 'justify-content-end');
+
+        /*         let btnSettings = document.createElement('button');
+                btnSettings.classList.add('btn', 'btn-outline-primary', 'border-0');
+                btnSettings.setAttribute('data-bs-toggle', 'modal');
+                btnSettings.setAttribute('data-bs-target', '#btableSettingsModa');
+                btnSettings.innerHTML = '<i class="bi bi-gear"></i>';
         
-        let btnSettings = document.createElement('button');
-        btnSettings.classList.add('btn', 'btn-outline-primary', 'border-0');
-        btnSettings.setAttribute('data-bs-toggle', 'modal');
-        btnSettings.setAttribute('data-bs-target', '#btableSettingsModa');
-        btnSettings.innerHTML = '<i class="bi bi-gear"></i>';
-
-        let btnGroupSave = document.createElement('div');
-        btnGroupSave.classList.add('btn-group');
-        btnGroupSave.setAttribute('role', 'group');
-
-        let btnSaveToggle = document.createElement('button');
-        btnSaveToggle.classList.add('btn', 'btn-outline-primary', 'border-0', 'dropdown-toggle');
-        btnSaveToggle.setAttribute('data-bs-toggle', 'dropdown');
-        btnSaveToggle.setAttribute('aria-expanded', 'false');
-        btnSaveToggle.innerHTML = '<i class="bi bi-download"></i>';
-
+                let btnGroupSave = document.createElement('div');
+                btnGroupSave.classList.add('btn-group');
+                btnGroupSave.setAttribute('role', 'group');
         
-        let btnSaveList = document.createElement('ul');
-        btnSaveList.classList.add('dropdown-menu');
-
-        btnSaveList.innerHTML+=`<li><a class="dropdown-item" href="#">Dropdown link</a></li>
-        <li><a class="dropdown-item" href="#">Dropdown link</a></li>`;
+                let btnSaveToggle = document.createElement('button');
+                btnSaveToggle.classList.add('btn', 'btn-outline-primary', 'border-0', 'dropdown-toggle');
+                btnSaveToggle.setAttribute('data-bs-toggle', 'dropdown');
+                btnSaveToggle.setAttribute('aria-expanded', 'false');
+                btnSaveToggle.innerHTML = '<i class="bi bi-download"></i>';
         
-        btnGroupSave.append(btnSaveToggle);
-        btnGroupSave.append(btnSaveList);
-
-
-        rightHeader.append(btnSettings);
-        rightHeader.append(btnGroupSave);
+                
+                let btnSaveList = document.createElement('ul');
+                btnSaveList.classList.add('dropdown-menu');
+        
+                btnSaveList.innerHTML+=`<li><a class="dropdown-item" href="#">Dropdown link</a></li>
+                <li><a class="dropdown-item" href="#">Dropdown link</a></li>`;
+                
+                btnGroupSave.append(btnSaveToggle);
+                btnGroupSave.append(btnSaveList);
+        
+        
+                rightHeader.append(btnSettings);
+                rightHeader.append(btnGroupSave); */
         //rightHeader.innerHTML+='<button class="btn btn-outline-primary border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#bstablesettingspanel"><i class="bi bi-gear"></i></button>';
 
         //let sModal
@@ -518,7 +527,6 @@ class BsTable {
     #craeteFooterTable() {
         let div = document.createElement('div');
 
-        //div.appendChild(this.noDataMsg);
         return div;
     }
 
@@ -634,7 +642,7 @@ class ActionsRow {
     }
 }
 
-class SettingsModal {
+/* class SettingsModal {
 
     modal;
 
@@ -665,5 +673,20 @@ class SettingsModal {
 
     remove(){
         this.modal.remove();
+    }
+} */
+
+class Footer {
+
+    bstable;
+    constructor(_bstable) {
+        this.bstable = _bstable;
+    }
+
+    create() {
+        let div = document.createElement('div');
+        div.classList.add('mt-3');
+        div.innerHTML='Всего записей: ' + this.bstable.data.length;
+        return div;
     }
 }
