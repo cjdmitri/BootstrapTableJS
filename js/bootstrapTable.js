@@ -24,6 +24,7 @@ class BsTable {
     pagesTotal = 0; //Количество страниц для загрузки при скроле страницы
     pageCurrent = 0; //текущая страница
     rowsToPage = 50; //Количество элементов на страницу, переопределяется через options
+
     searchResultData = []; //Массив с результатами посика
 
     //Состояние
@@ -75,6 +76,7 @@ class BsTable {
         this.container.append(this.#createHeaderTable());
         this.container.append(this.contTable);
         this.container.append(this.#craeteFooterTable());
+        //this.container.innerHTML+=this.#settingsPanel();
         pnode.append(this.container);
 
         this.#createTHeadRow();
@@ -85,7 +87,7 @@ class BsTable {
             //this.#actionRowCreate();
             this.#actionRow = new ActionsRow(this.contTable, this.options);
         }
-
+        this.settingsModal = new SettingsModal(this.container, this.options);
 
         //window.addEventListener('scroll', event => {this.#tableScroll();}, false); 
 
@@ -276,6 +278,11 @@ class BsTable {
      */
     #addFirstRows() {
         this.clearTable();
+        if (this.data.length===0){
+            this.noDataMsg.hidden = false;
+        }else{
+            this.noDataMsg.hidden = true;
+        }
         if (this.data.length > this.rowsToPage) {
             for (let i = 0; i < this.rowsToPage; i++) {
                 this.insertRow(this.data[i]);
@@ -360,7 +367,7 @@ class BsTable {
         this.thead = this.table.createTHead();
         if (this.options.fixedHeaderTable === true) {
             this.thead.classList.add("sticky-top", "bg-white", "shadow");
-        }else{
+        } else {
             this.thead.classList.add("bg-white", "shadow");
         }
 
@@ -463,13 +470,45 @@ class BsTable {
 
         let rightHeader = document.createElement('div');
         rightHeader.classList.add('col-6', 'd-flex', 'justify-content-end');
-        rightHeader.innerHTML+='<button class="btn btn-outline-primary border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#bstablesettingspanel"><i class="bi bi-gear"></i></button>';
+        
+        let btnSettings = document.createElement('button');
+        btnSettings.classList.add('btn', 'btn-outline-primary', 'border-0');
+        btnSettings.setAttribute('data-bs-toggle', 'modal');
+        btnSettings.setAttribute('data-bs-target', '#btableSettingsModa');
+        btnSettings.innerHTML = '<i class="bi bi-gear"></i>';
+
+        let btnGroupSave = document.createElement('div');
+        btnGroupSave.classList.add('btn-group');
+        btnGroupSave.setAttribute('role', 'group');
+
+        let btnSaveToggle = document.createElement('button');
+        btnSaveToggle.classList.add('btn', 'btn-outline-primary', 'border-0', 'dropdown-toggle');
+        btnSaveToggle.setAttribute('data-bs-toggle', 'dropdown');
+        btnSaveToggle.setAttribute('aria-expanded', 'false');
+        btnSaveToggle.innerHTML = '<i class="bi bi-download"></i>';
 
         
+        let btnSaveList = document.createElement('ul');
+        btnSaveList.classList.add('dropdown-menu');
+
+        btnSaveList.innerHTML+=`<li><a class="dropdown-item" href="#">Dropdown link</a></li>
+        <li><a class="dropdown-item" href="#">Dropdown link</a></li>`;
+        
+        btnGroupSave.append(btnSaveToggle);
+        btnGroupSave.append(btnSaveList);
+
+
+        rightHeader.append(btnSettings);
+        rightHeader.append(btnGroupSave);
+        //rightHeader.innerHTML+='<button class="btn btn-outline-primary border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#bstablesettingspanel"><i class="bi bi-gear"></i></button>';
+
+        //let sModal
+
         div.appendChild(rightHeader);
 
         return div;
     }
+
 
 
     /**
@@ -530,13 +569,13 @@ class ActionsRow {
     constructor(container, options) {
         this.#options = options;
         this.#actionRow = document.createElement('div');
-        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between', 'align-items-center');
+        this.#actionRow.classList.add('position-absolute', 'bg-white', 'shadow', 'p-2', 'd-flex', 'justify-content-between', 'align-items-center', 'd-none');
         //this.#actionRow.style.width = "100%";
         this.#actionRow.style.zIndex = "1000";
         this.#actionRow.style.left = "0px";
         this.#actionRow.style.top = "0px";
-        this.#actionRow.style.border="1px solid #c7c7ff";
-        this.#actionRow.style.borderRadius="5px";
+        this.#actionRow.style.border = "1px solid #c7c7ff";
+        this.#actionRow.style.borderRadius = "5px";
 
         this.#actionRow.style.transition = "all 0.2s ease 0s";
         this.#actionRow.hidden = true;
@@ -592,5 +631,39 @@ class ActionsRow {
             this.#actionRow.hidden = true;
             this.#actionRow.classList.add('d-none');
         }
+    }
+}
+
+class SettingsModal {
+
+    modal;
+
+    constructor(container, options) {
+        this.modal = document.createElement('div');
+        this.modal.id = 'btableSettingsModa';
+        this.modal.classList.add('modal', 'fade');
+        this.modal.setAttribute('tabindex', '-1');
+        this.modal.setAttribute('aria-hidden', 'true');
+
+        this.modal.innerHTML = ` <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">Настройки</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            ...
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>`;
+        container.append(this.modal);
+    }
+
+    remove(){
+        this.modal.remove();
     }
 }

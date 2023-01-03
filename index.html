@@ -90,7 +90,7 @@
                 }
             ],
             actions: [
-                `<a class="btn btn-sm btn-primary" href="/api/edite/{id}"><i class="bi bi-pencil"></i></a>`,
+                `<a class="btn btn-sm btn-primary" href="javascript:edite()"><i class="bi bi-pencil"></i></a>`,
                 `<a class="btn btn-sm btn-danger" href="javascript:remove('{name}')"><i class="bi bi-trash3"></i></a>`
             ]
         };
@@ -101,6 +101,11 @@
             if(confirm('Удалить запись?')){
                 btable.removeActiveItem();
             }
+        }
+
+        function edite(){
+            let item = btable.activeItemData;
+            console.log(item);
         }
 
     </script>
