@@ -185,7 +185,9 @@ class BsTable {
      * @param {*} sText - текст для поиска совпадений
      */
     search(sText) {
-        this.#actionRow.hide();
+        if(this.#actionRow !== undefined){
+            this.#actionRow.hide();
+        }
         //let searchBTableInput = document.getElementById('searchBTableInput');
         console.log(searchBTableInput.value);
         this.noDataMsg.hidden = true;
@@ -234,7 +236,9 @@ class BsTable {
      */
     sortData(keyName) {
         let sortDataArray = [];
-        this.#actionRow.hide();
+        if(this.#actionRow !== undefined){
+            this.#actionRow.hide();
+        }
         this.contTable.scrollTop = 0;
         //Если производится поиск записей и есть результаты поиска, то сортируем только их
         if (this.searchResultData.length > 0 && this.itsSearchProcess) {
