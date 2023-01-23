@@ -1,12 +1,17 @@
-
+/*!
+ * Bootstrap Table JS
+ * Version: 0.1.0
+ * Release: 02.2023
+ */
 class BsTable {
     //Settings
     //Основные настройки приложения переданные при создании таблицы в конструктор
     options = {
         itemsToPage: 50,
-        hiddenColumns: ["phone"],
+        //hiddenColumns: ["phone"], 
         tableHeight: "500px",
-        fixedHeaderTable: true
+        fixedHeaderTable: true,
+        //showFooter: true
     };
 
     //Elements
@@ -45,7 +50,6 @@ class BsTable {
         //try {
         this.table = document.getElementById(idTable);
         this.data = datat;
-        this.footer = new Footer(this);
         if (_options != null) {
             this.options = _options;
         }
@@ -77,7 +81,11 @@ class BsTable {
 
         this.container.append(this.#createHeaderTable());
         this.container.append(this.contTable);
-        this.container.append(this.footer.create());
+
+        //if (this.options.showFooter === true) {
+        this.container.append(this.#createFooter());
+        //}
+
         pnode.append(this.container);
 
         this.#createTHeadRow();
@@ -90,13 +98,15 @@ class BsTable {
         }
         //this.settingsModal = new SettingsModal(this.container, this.options);
 
-        //window.addEventListener('scroll', event => {this.#tableScroll();}, false); 
-
         console.log("BsTable created!");
         //} catch (error) {
         //alert(`При инициализации произошла ошибка: ${error}`)
         //}
     }
+
+
+
+
 
     #createNoDataMessage() {
         this.noDataMsg = document.createElement('div');
@@ -143,20 +153,31 @@ class BsTable {
         row.addEventListener('mouseleave', event => { this.#rowMouseleave(dataItem, row) }, false)
     }
 
+
     /**
     * Удаляет активную строку из таблицы и объект из массива
     */
     removeActiveItem() {
-        let index = this.data.indexOf(this.activeItemData);
-        let rItem = this.data.splice(index, 1);
-        this.#activeItemRow.remove();
+        try {
+            let removeItem = this.activeItemData;
+            let index = this.data.indexOf(this.activeItemData);
+            let rItem = this.data.splice(index, 1);
+            this.#activeItemRow.remove();
 
-        //Обновляем ихформацию об активных элементах
-        this.activeItemData = null;
-        this.#activeItemRow = null;
-        this.#actionRow.hide();
-        console.log('Item deleted');
-        console.log('Items count: ' + this.data.length);
+            //Обновляем ихформацию об активных элементах
+            this.activeItemData = null;
+            this.#activeItemRow = null;
+            this.#actionRow.hide();
+            //console.log('Item deleted');
+            //console.log('Items count: ' + this.data.length);
+
+            
+            console.log(removeItem);
+            return removeItem;
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
     }
 
     /**
@@ -298,7 +319,7 @@ class BsTable {
             }
         } else {
             for (let i = 0; i < this.data.length; i++) {
-                this.insertRow(data[i]);
+                this.insertRow(this.data[i]);
             }
         }
     }
@@ -311,8 +332,10 @@ class BsTable {
     #rowClicked(dataItem, row) {
         this.activeItemData = dataItem;
         this.#activeItemRow = row;
-        this.#actionRow.show(dataItem, row);
+        if (this.options.actions != undefined) {
+            this.#actionRow.show(dataItem, row);
 
+        }
     }
 
     #rowMouseenter(dataItem, row) { }
@@ -418,7 +441,34 @@ class BsTable {
         //console.log(tbody);
         if (this.tbody === null || this.tbody === undefined) {
             this.tbody = document.createElement('tbody');
+            //this.tbody.addEventListener('change', this.#changeTBody, false);
+            // Select the node that will be observed for mutations
+
+
+
             this.table.appendChild(this.tbody);
+        }
+
+        // Options for the observer (which mutations to observe)
+        const config = { attributes: true, childList: true, subtree: false };
+        const observer = new MutationObserver(this.#changeTBodyCallback);
+        observer.observe(this.tbody, config);
+    }
+
+    /**
+     * Отслеживает изменения в таблице данных
+     * @param {*} mutationList 
+     * @param {*} observer 
+     */
+    #changeTBodyCallback = (mutationList, observer) => {
+        for (const mutation of mutationList) {
+            if (mutation.type === 'childList') {
+                //console.log('A child node has been added or removed.');
+                let curData = this.tbody.querySelectorAll('tr').length;
+                this.#footerLabelData.innerHTML = `Записей: <strong>${curData}</strong> из <strong>${this.data.length}</strong>`;
+            } else if (mutation.type === 'attributes') {
+                //console.log(`The ${mutation.attributeName} attribute was modified.`);
+            }
         }
     }
 
@@ -518,8 +568,6 @@ class BsTable {
         return div;
     }
 
-
-
     /**
      * Нижний контейнер с элементами управления
      * @returns 
@@ -544,7 +592,6 @@ class BsTable {
         return false;
     }
 
-
     /**
      * Действия при скроле страницы
      */
@@ -561,6 +608,28 @@ class BsTable {
     }
 
 
+    #footer //Контейнер для элементов управления футера
+    #footerLabelData; //Количество показанных записей
+    #createFooter() {
+        this.#footer = document.createElement('div');
+        this.#footer.classList.add('mt-3', 'row');
+
+        let leftColFooter = document.createElement('div');
+        leftColFooter.classList.add('col-6');
+
+        let rightColFooter = document.createElement('div');
+        rightColFooter.classList.add('col-6');
+
+        this.#footerLabelData = document.createElement('label');
+        leftColFooter.append(this.#footerLabelData);
+
+
+
+        this.#footer.append(leftColFooter);
+        this.#footer.append(rightColFooter);
+
+        return this.#footer;
+    }
 
 
 }
@@ -676,17 +745,3 @@ class ActionsRow {
     }
 } */
 
-class Footer {
-
-    bstable;
-    constructor(_bstable) {
-        this.bstable = _bstable;
-    }
-
-    create() {
-        let div = document.createElement('div');
-        div.classList.add('mt-3');
-        div.innerHTML='Всего записей: ' + this.bstable.data.length;
-        return div;
-    }
-}
